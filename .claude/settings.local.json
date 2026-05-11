@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(py -3.12 --version)",
+      "Bash(venv/Scripts/python -c \"import mediapipe; import os; p = os.path.dirname\\(mediapipe.__file__\\); print\\('\\\\n'.join\\(os.listdir\\(p\\)\\)\\)\")",
+      "Bash(venv/Scripts/python -c \"import mediapipe; import os; p = os.path.dirname\\(mediapipe.__file__\\); print\\('\\\\n'.join\\(os.listdir\\(p+'/tasks'\\)\\)\\)\")",
+      "Bash(venv/Scripts/python -c \"import mediapipe; import os; p = os.path.dirname\\(mediapipe.__file__\\); print\\('\\\\n'.join\\(os.listdir\\(p+'/modules'\\)\\)[:500]\\)\")",
+      "Bash(venv/Scripts/python -c ' *)",
+      "Bash(venv/Scripts/python -c \"import mediapipe; import os; p = os.path.dirname\\(mediapipe.__file__\\); mods = p+'/modules/hand_landmark'; print\\(os.listdir\\(mods\\)\\)\")"
+    ]
+  }
+}
