@@ -4,26 +4,22 @@ import cv2
 import mediapipe as mp
 from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
+from landmarks_utils import normalizar
 
 MODEL_PATH = r"F:\App LSE\hand_landmarker.task"
 OUTPUT_CSV = r"F:\App LSE\muestras_propias.csv"
-LETRAS_OBJETIVO = ["F"]
 MUESTRAS_POR_LETRA = 50
 
 COLUMNAS = ["letra"] + [f"{eje}{i}" for i in range(21) for eje in ("x", "y", "z")]
 
 
-def normalizar(landmarks_raw, es_izquierda=False):
-    base_x, base_y, base_z = landmarks_raw[0].x, landmarks_raw[0].y, landmarks_raw[0].z
-    coords = []
-    for lm in landmarks_raw:
-        x = lm.x - base_x
-        coords += [-x if es_izquierda else x, lm.y - base_y, lm.z - base_z]
-    max_val = max(abs(v) for v in coords) or 1.0
-    return [v / max_val for v in coords]
-
-
 def main():
+    print("Letras disponibles: A-Z")
+    entrada = input("¿Qué letra(s) quieres grabar? (ej: C o C,F,G): ").strip().upper()
+    letras_objetivo = [l.strip() for l in entrada.split(",")]
+
+    print(f"Grabarás {len(letras_objetivo)} letra(s): {', '.join(letras_objetivo)}")
+
     opts = HandLandmarkerOptions(
         base_options=BaseOptions(model_asset_path=MODEL_PATH),
         running_mode=RunningMode.VIDEO,
@@ -42,7 +38,7 @@ def main():
     ts_ms = 0
 
     with HandLandmarker.create_from_options(opts) as landmarker:
-        for letra in LETRAS_OBJETIVO:
+        for letra in letras_objetivo:
             guardadas = 0
             grabando = False
 

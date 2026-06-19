@@ -24,10 +24,29 @@ def cargar_datos():
                 y.append(letra)
     return np.array(X), np.array(y)
 
+
+def aumentar_datos(X, y, factor=2):
+    X_aug, y_aug = list(X), list(y)
+    np.random.seed(42)
+
+    for _ in range(factor):
+        for x in X:
+            ruido = np.random.normal(0, 0.02, len(x))
+            x_aug = x + ruido
+            x_aug = np.clip(x_aug, -1, 1)
+            X_aug.append(x_aug)
+        y_aug.extend(y)
+
+    return np.array(X_aug), np.array(y_aug)
+
 def main():
     print("Cargando datos...")
     X, y = cargar_datos()
-    print(f"{len(X)} ejemplos, {len(set(y))} clases: {sorted(set(y))}")
+    print(f"{len(X)} ejemplos originales")
+
+    print("Aplicando data augmentation...")
+    X, y = aumentar_datos(X, y, factor=2)
+    print(f"{len(X)} ejemplos después de augmentation, {len(set(y))} clases: {sorted(set(y))}")
 
     le = LabelEncoder()
     y_enc = le.fit_transform(y)

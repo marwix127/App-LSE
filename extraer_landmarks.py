@@ -4,6 +4,7 @@ import cv2
 import mediapipe as mp
 from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
+from landmarks_utils import normalizar
 
 DATASET_DIR = r"F:\Downloads\asl_alphabet_train\asl_alphabet_train"
 LETRAS = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -11,16 +12,6 @@ OUTPUT_CSV = "landmarks_dataset.csv"
 MODEL_PATH = r"F:\App LSE\hand_landmarker.task"
 
 COLUMNAS = ["letra"] + [f"{eje}{i}" for i in range(21) for eje in ("x", "y", "z")]
-
-
-def normalizar(landmarks_raw, es_izquierda=False):
-    base_x, base_y, base_z = landmarks_raw[0].x, landmarks_raw[0].y, landmarks_raw[0].z
-    coords = []
-    for lm in landmarks_raw:
-        x = lm.x - base_x
-        coords += [-x if es_izquierda else x, lm.y - base_y, lm.z - base_z]
-    max_val = max(abs(v) for v in coords) or 1.0
-    return [v / max_val for v in coords]
 
 
 def extraer_landmarks_imagen(landmarker, ruta):

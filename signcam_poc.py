@@ -6,11 +6,16 @@ from pyvirtualcam import PixelFormat
 import mediapipe as mp
 from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
+import tensorflow as tf
+from landmarks_utils import normalizar
 
 MODEL_PATH = r"F:\App LSE\hand_landmarker.task"
 MLP_PATH = r"F:\App LSE\mlp_signos.pkl"
+LSTM_PATH = r"F:\App LSE\lstm_signos.h5"
+LSTM_ENCODER_PATH = r"F:\App LSE\lstm_encoder.pkl"
 ANCHO, ALTO, FPS = 1280, 720, 30
 BANDA_H = 120
+BUFFER_SIZE = 30
 
 
 def crear_landmarker():
@@ -43,23 +48,47 @@ def cargar_mlp():
     return datos["model"], datos["encoder"]
 
 
-def normalizar(landmarks_raw, es_izquierda=False):
-    base_x, base_y, base_z = landmarks_raw[0].x, landmarks_raw[0].y, landmarks_raw[0].z
-    coords = []
-    for lm in landmarks_raw:
-        x = lm.x - base_x
-        coords += [-x if es_izquierda else x, lm.y - base_y, lm.z - base_z]
-    max_val = max(abs(v) for v in coords) or 1.0
-    return [v / max_val for v in coords]
+def cargar_lstm():
+    model = tf.keras.models.load_model(LSTM_PATH)
+    with open(LSTM_ENCODER_PATH, "rb") as f:
+        le = pickle.load(f)
+    return model, le
 
 
 def clasificar_signo(resultado, clf, le):
     if not resultado.hand_landmarks:
-        return ""
+        return "", 0.0
     es_izquierda = resultado.handedness[0][0].category_name == "Left"
     landmarks = normalizar(resultado.hand_landmarks[0], es_izquierda)
-    pred = clf.predict([landmarks])
-    return le.inverse_transform(pred)[0]
+    pred_probs = clf.predict_proba([landmarks])[0]
+    clase_idx = np.argmax(pred_probs)
+    confianza = pred_probs[clase_idx]
+    if confianza < 0.95:
+        return "", confianza
+    return le.inverse_transform([clase_idx])[0], confianza
+
+
+def hay_movimiento(buffer):
+    if len(buffer) < BUFFER_SIZE:
+        return False
+    seq = np.array(buffer[-BUFFER_SIZE:])
+    # std a lo largo del tiempo (eje 0) por cada coordenada, promediado.
+    # Mano quieta -> cercano a 0; movimiento (J/Z) -> alto.
+    movimiento = np.mean(np.std(seq, axis=0))
+    return movimiento > 0.03
+
+
+def clasificar_secuencia(buffer, lstm_model, lstm_le):
+    if len(buffer) < BUFFER_SIZE or not hay_movimiento(buffer):
+        return ""
+    seq = np.array(buffer[-BUFFER_SIZE:])
+    seq = np.expand_dims(seq, axis=0)
+    pred = lstm_model.predict(seq, verbose=0)
+    clase = np.argmax(pred)
+    confianza = pred[0, clase]
+    if confianza < 0.95:
+        return ""
+    return lstm_le.inverse_transform([clase])[0]
 
 
 def dibujar_subtitulo(frame, texto):
@@ -71,6 +100,8 @@ def dibujar_subtitulo(frame, texto):
 
 def main():
     clf, le = cargar_mlp()
+    lstm_model, lstm_le = cargar_lstm()
+
     cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, ANCHO)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, ALTO)
@@ -82,6 +113,10 @@ def main():
         print(f"Camara virtual: {cam.device}")
         print("Presiona Q para salir.")
         ts_ms = 0
+        buffer = []
+        texto_anterior = ""
+        tiempo_ultimo_cambio = 0
+        MIN_TIEMPO_ENTRE_CAMBIOS = 0.5
 
         while True:
             ok, frame = cap.read()
@@ -96,7 +131,35 @@ def main():
             resultado = landmarker.detect_for_video(mp_image, ts_ms)
 
             dibujar_landmarks(frame, resultado)
-            texto = clasificar_signo(resultado, clf, le)
+
+            tiempo_actual = ts_ms / 1000.0
+            texto = texto_anterior
+
+            if resultado.hand_landmarks:
+                es_izquierda = resultado.handedness[0][0].category_name == "Left"
+                landmarks = normalizar(resultado.hand_landmarks[0], es_izquierda)
+
+                buffer.append(landmarks)
+                if len(buffer) > BUFFER_SIZE:
+                    buffer.pop(0)
+
+                if tiempo_actual - tiempo_ultimo_cambio >= MIN_TIEMPO_ENTRE_CAMBIOS:
+                    texto_lstm = clasificar_secuencia(buffer, lstm_model, lstm_le)
+                    if texto_lstm:
+                        texto_nuevo = f"[MOVIMIENTO] {texto_lstm}"
+                    else:
+                        texto_nuevo, conf = clasificar_signo(resultado, clf, le)
+
+                    if texto_nuevo and texto_nuevo != texto_anterior:
+                        texto = texto_nuevo
+                        texto_anterior = texto_nuevo
+                        tiempo_ultimo_cambio = tiempo_actual
+            else:
+                buffer = []
+                if texto_anterior:
+                    texto = ""
+                    texto_anterior = ""
+
             frame_out = dibujar_subtitulo(frame, texto)
 
             cam.send(frame_out)
