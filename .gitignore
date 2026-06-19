@@ -1,0 +1,23 @@
+# Entorno virtual — se reconstruye con: pip install -r requirements.txt
+# (contiene el .dll de TensorFlow >100MB que rechaza GitHub)
+venv/
+
+# Caché de Python
+__pycache__/
+*.pyc
+
+# Dataset generado (regenerable con extraer_landmarks.py)
+landmarks_dataset.csv
+# Nota: lstm_sequences.pkl SÍ se sube — contiene grabaciones propias de J/Z no regenerables
+
+# Modelo de MediaPipe (se descarga de Google, ver README)
+hand_landmarker.task
+
+# Modelos entrenados — descomenta si NO quieres subirlos
+# (son pequeños pero regenerables con entrenar_mlp.py / entrenar_lstm.py)
+# mlp_signos.pkl
+# lstm_signos.h5
+# lstm_encoder.pkl
+
+# Configuración local de Claude
+.claude/

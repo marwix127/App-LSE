@@ -82,6 +82,51 @@ Mejorar la detección de letras problemáticas (C, F) añadiendo muestras propia
 ### Resultado
 Mejora notable en C y F. El modelo generaliza bien a diferentes posiciones y ángulos de la mano gracias a la combinación de dataset genérico + muestras propias.
 
+## Fase 2c: Data augmentation y alfabeto completo ✅
+**Completado: 2026-06-19**
+
+- Extracción ampliada a las 26 letras (A-Z) del dataset ASL
+- Data augmentation en `entrenar_mlp.py`: `aumentar_datos()` añade ruido gaussiano (factor 2) para más robustez
+- Script `grabar_muestras.py` mejorado: pregunta qué letra(s) grabar al inicio (una o varias separadas por comas)
+
+## Fase 2d: Clasificador LSTM para letras dinámicas (J, Z) ✅
+**Completado: 2026-06-19**
+
+### Objetivo
+Reconocer letras con movimiento (J, Z) que el MLP no puede captar al ver solo un frame estático.
+
+### Arquitectura híbrida
+- **MLP** (scikit-learn): 26 letras estáticas, clasifica frame a frame
+- **LSTM** (Keras): J y Z dinámicas, clasifica secuencias de 30 frames
+- **Selector por movimiento**: mide variación temporal de los landmarks (`np.std` sobre eje tiempo). Mano quieta (~0.002) → MLP; movimiento (~0.100) → LSTM. Umbral: 0.03
+
+### Datos
+- Script `grabar_secuencias.py`: graba secuencias propias desde webcam (30 frames cada una)
+- Dataset externo: **SigNN Video Data** (Kaggle) — 316 vídeos J + 396 vídeos Z (.avi)
+- Script `extraer_secuencias_video.py`: extrae landmarks de los vídeos, remuestrea a 30 frames con `np.linspace`
+- Total: J=336, Z=412 secuencias
+- `entrenar_lstm.py`: LSTM(128) → Dropout → Dense(64) → softmax. 100% accuracy en test
+
+### Problemas encontrados y soluciones
+| Problema | Causa | Solución |
+|---|---|---|
+| LSTM se "pegaba" en J/Z y no soltaba | Buffer se llenaba y predecía movimiento sin haberlo | Gate por movimiento temporal + umbral confianza 0.95 |
+| `UnicodeEncodeError` al imprimir `→` | Consola Windows usa cp1252 | Caracteres ASCII + `PYTHONUTF8=1` |
+| `hay_movimiento` siempre daba true | `np.std(seq)` medía dispersión espacial, no temporal | `np.std(seq, axis=0).mean()` mide variación en el tiempo |
+| Buffer se reseteaba durante el movimiento | `hay_cambio_significativo` vaciaba el buffer justo al hacer J/Z | Eliminado el reset, ventana deslizante de 30 frames |
+
+### Archivos nuevos
+- `grabar_secuencias.py` — graba secuencias propias de J/Z
+- `extraer_secuencias_video.py` — extrae secuencias del dataset de vídeo
+- `entrenar_lstm.py` — entrena el LSTM
+- `lstm_sequences.pkl` — secuencias de entrenamiento
+- `lstm_signos.h5` + `lstm_encoder.pkl` — modelo LSTM entrenado
+
+### Resultado
+Sistema híbrido funcionando casi perfecto: detecta las 26 letras estáticas y las 2 dinámicas (J, Z) en tiempo real sobre la cámara virtual.
+
+---
+
 ## Fase 3: UI — App Electron + React (pendiente)
 Panel de configuración, selección de lengua de signos, etc.
 
