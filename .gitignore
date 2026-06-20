@@ -6,6 +6,10 @@ venv/
 __pycache__/
 *.pyc
 
+# Dependencias y build de la app Electron/React
+app/node_modules/
+app/dist/
+
 # Dataset generado (regenerable con extraer_landmarks.py)
 landmarks_dataset.csv
 # Nota: lstm_sequences.pkl SÍ se sube — contiene grabaciones propias de J/Z no regenerables

@@ -127,8 +127,66 @@ Sistema híbrido funcionando casi perfecto: detecta las 26 letras estáticas y l
 
 ---
 
-## Fase 3: UI — App Electron + React (pendiente)
-Panel de configuración, selección de lengua de signos, etc.
+## Fase 3: UI — App Electron + React ✅
+**Completado: 2026-06-20**
+
+### Objetivo
+Envolver el pipeline de Python en una app de escritorio con interfaz: encender/apagar
+la cámara, preview en vivo, letra detectada y panel de ajustes.
+
+### Arquitectura
+Electron (UI en JS) + Python (pipeline) comunicados por procesos:
+
+```
+Webcam real ──► [Sidecar Python] ──► Cámara virtual "SignCam/OBS"
+                 MediaPipe+MLP/LSTM        │          │
+                      │ (JSON: letra,fps)  │          └──► Teams/Zoom
+                      ▼                    └──► Preview React (getUserMedia)
+                [Electron main] ──IPC──► [React UI]
+```
+
+- **Sidecar** (`signcam_sidecar.py`): el pipeline de la fase 2, adaptado para recibir
+  config por argumentos (`--camera`, `--subtitle-scale`, `--subtitle-position`) y emitir
+  eventos JSON por stdout (NDJSON). Sin ventana OpenCV. Se detiene con `stop` por stdin.
+- **Electron main** (`app/electron/main.js`): crea la ventana, lanza el sidecar con
+  `spawn` (cwd = raíz del proyecto, usa el venv), parsea las líneas JSON y las reenvía
+  al renderer. Concede permisos de cámara (`setPermissionRequestHandler` +
+  `setPermissionCheckHandler`).
+- **Preload** (`app/electron/preload.js`): expone `window.signcam` (start/stop/onEvent)
+  de forma segura con contextBridge.
+- **React** (`app/src/`): `App.jsx` (estado + control), `Preview.jsx` (vídeo en vivo),
+  `Settings.jsx` (ajustes persistidos en localStorage).
+
+### Decisión clave: el preview lee la cámara VIRTUAL, no la real
+En Windows solo un proceso abre la webcam física. Python es el dueño de la webcam real;
+el preview de React lee la **cámara virtual** con `getUserMedia`. Así se ve exactamente
+lo que verán en Teams, sin conflicto de acceso.
+
+### Problemas encontrados y soluciones
+| Problema | Causa | Solución |
+|---|---|---|
+| Preview en negro + "device in use" | El preview hacía un `getUserMedia({video:true})` que abría la webcam real (ocupada por el sidecar; el usuario usa DroidCam) | Quitar ese paso; leer directamente la cámara virtual por nombre |
+| Etiquetas de cámaras vacías al enumerar | Sin permiso concedido de forma síncrona | `setPermissionCheckHandler(() => true)` en main |
+| Dos subtítulos a la vez | El overlay del frontend duplicaba el subtítulo quemado, que ya aparece en el preview | Eliminado el overlay del frontend |
+| "[MOVIMIENTO]" se quemaba en el vídeo | Era una ayuda de desarrollo en el texto del subtítulo | Subtítulo solo con la letra limpia; `is_movement` va solo por JSON a la app |
+| npm no encuentra package.json | Se ejecutaba desde la raíz; está en `app/` | Ejecutar `npm run dev` desde `app/` |
+
+### Limitación conocida
+La selección de cámara es por **índice numérico** (0-4) porque OpenCV usa índices, que no
+se corresponden con los `deviceId` del navegador. Pendiente de mejorar (sondear índices).
+
+### Archivos nuevos
+- `signcam_sidecar.py` — pipeline como sidecar (JSON por stdout, config por args)
+- `app/` — proyecto Electron + React (package.json, electron/, src/)
+
+### Resultado
+App de escritorio funcionando: botón iniciar/detener, preview en vivo de la cámara
+virtual, fps en pantalla y panel de ajustes (cámara, tamaño y posición del subtítulo)
+persistente. El subtítulo real se compone en Python y se expone a Teams/Zoom/Meet.
+
+---
 
 ## Fase 4: Empaquetado (pendiente)
 Instalador que incluye el driver de cámara virtual sin necesidad de instalar OBS.
+Pendiente también: empaquetar el venv de Python / convertir el sidecar a ejecutable
+(PyInstaller) para que el usuario final no necesite Python instalado.
