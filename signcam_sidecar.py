@@ -22,6 +22,23 @@ import pickle
 import argparse
 import threading
 
+# IMPORTANTE: importar sklearn ANTES de inicializar COM (MTA). Al cargar el MLP con
+# pickle, sklearn importa de forma diferida su backend de hilos (OpenMP/joblib), que
+# choca con la inicialización MTA de COM y produce un deadlock permanente al "cargar
+# modelos". Forzando el import aquí, ese backend se inicializa antes que COM. No quitar.
+import sklearn  # noqa: F401
+import sklearn.neural_network  # noqa: F401
+
+
+# Inicializa COM en modo MULTITHREADED (MTA) antes de tocar la cámara. Lanzado como
+# proceso hijo de Electron, el hilo entra por defecto en STA, que necesita un bucle de
+# mensajes que el sidecar no tiene (está en el bucle de captura) -> deadlock de COM
+# (ventana "OleMainThreadWndName Not Responding"). En MTA no hace falta ese bucle.
+if sys.platform == "win32":
+    import ctypes
+    COINIT_MULTITHREADED = 0x0
+    ctypes.windll.ole32.CoInitializeEx(None, COINIT_MULTITHREADED)
+
 import cv2
 import numpy as np
 import pyvirtualcam
@@ -29,12 +46,12 @@ from pyvirtualcam import PixelFormat
 import mediapipe as mp
 from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
-import tensorflow as tf
+import onnxruntime as ort
 from landmarks_utils import normalizar
 
 MODEL_PATH = r"F:\App LSE\hand_landmarker.task"
 MLP_PATH = r"F:\App LSE\mlp_signos.pkl"
-LSTM_PATH = r"F:\App LSE\lstm_signos.h5"
+LSTM_PATH = r"F:\App LSE\lstm_signos.onnx"
 LSTM_ENCODER_PATH = r"F:\App LSE\lstm_encoder.pkl"
 
 ANCHO, ALTO, FPS = 1280, 720, 30
@@ -77,10 +94,11 @@ def cargar_mlp():
 
 
 def cargar_lstm():
-    model = tf.keras.models.load_model(LSTM_PATH)
+    sesion = ort.InferenceSession(LSTM_PATH, providers=["CPUExecutionProvider"])
+    entrada = sesion.get_inputs()[0].name
     with open(LSTM_ENCODER_PATH, "rb") as f:
         le = pickle.load(f)
-    return model, le
+    return sesion, entrada, le
 
 
 def dibujar_landmarks(frame, resultado):
@@ -117,11 +135,11 @@ def hay_movimiento(buffer):
     return movimiento > 0.03
 
 
-def clasificar_secuencia(buffer, lstm_model, lstm_le):
+def clasificar_secuencia(buffer, lstm_sesion, lstm_entrada, lstm_le):
     if len(buffer) < BUFFER_SIZE or not hay_movimiento(buffer):
         return ""
-    seq = np.expand_dims(np.array(buffer[-BUFFER_SIZE:]), axis=0)
-    pred = lstm_model.predict(seq, verbose=0)
+    seq = np.expand_dims(np.array(buffer[-BUFFER_SIZE:], dtype=np.float32), axis=0)
+    pred = lstm_sesion.run(None, {lstm_entrada: seq})[0]
     clase = np.argmax(pred)
     if pred[0, clase] < CONF_MIN:
         return ""
@@ -145,18 +163,15 @@ def main():
     parser.add_argument("--camera", type=int, default=0)
     parser.add_argument("--subtitle-scale", type=float, default=1.0)
     parser.add_argument("--subtitle-position", choices=["top", "bottom"], default="bottom")
-    parser.add_argument("--language", default="lse")
     args = parser.parse_args()
 
     threading.Thread(target=escuchar_stdin, daemon=True).start()
 
     try:
-        emit({"type": "init", "stage": "loading_models"})
-        clf, le = cargar_mlp()
-        lstm_model, lstm_le = cargar_lstm()
-
-        # CAP_DSHOW: el índice coincide con el de listar_camaras.py (pygrabber/DirectShow).
-        cap = cv2.VideoCapture(args.camera, cv2.CAP_DSHOW)
+        emit({"type": "init", "stage": "opening_camera"})
+        # Backend por defecto (MSMF en Windows): estable dentro de Electron.
+        # DirectShow (CAP_DSHOW) se colgaba al abrir DroidCam desde el proceso hijo.
+        cap = cv2.VideoCapture(args.camera)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, ANCHO)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, ALTO)
         if not cap.isOpened():
@@ -164,8 +179,15 @@ def main():
             return
         emit({"type": "init", "stage": "camera_opened"})
 
+        emit({"type": "init", "stage": "loading_models"})
+        clf, le = cargar_mlp()
+        lstm_sesion, lstm_entrada, lstm_le = cargar_lstm()
+
         banda_h = int(120 * args.subtitle_scale)
-        with crear_landmarker() as landmarker, \
+        emit({"type": "init", "stage": "loading_landmarker"})
+        landmarker = crear_landmarker()
+        emit({"type": "init", "stage": "opening_virtualcam"})
+        with landmarker, \
              pyvirtualcam.Camera(width=ANCHO, height=ALTO + banda_h, fps=FPS,
                                  fmt=PixelFormat.BGR) as cam:
 
@@ -204,7 +226,7 @@ def main():
                         buffer.pop(0)
 
                     if tiempo_actual - tiempo_ultimo_cambio >= MIN_TIEMPO_ENTRE_CAMBIOS:
-                        letra_lstm = clasificar_secuencia(buffer, lstm_model, lstm_le)
+                        letra_lstm = clasificar_secuencia(buffer, lstm_sesion, lstm_entrada, lstm_le)
                         if letra_lstm:
                             letra_nueva, es_movimiento = letra_lstm, True
                         else:

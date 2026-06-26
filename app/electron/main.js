@@ -1,5 +1,5 @@
 const { app, BrowserWindow, ipcMain, session } = require("electron");
-const { spawn } = require("child_process");
+const { spawn, execFile } = require("child_process");
 const readline = require("readline");
 const path = require("path");
 
@@ -45,11 +45,11 @@ function arrancarSidecar(config = {}) {
   if (sidecar) return; // ya corriendo
 
   const args = [
+    "-u", // sin buffering: los eventos JSON llegan al instante
     SIDECAR,
     "--camera", String(config.camera ?? 0),
     "--subtitle-scale", String(config.subtitleScale ?? 1.0),
     "--subtitle-position", config.subtitlePosition ?? "bottom",
-    "--language", config.language ?? "lse",
   ];
 
   sidecar = spawn(PYTHON, args, { cwd: PROJECT_ROOT });
@@ -81,13 +81,26 @@ function arrancarSidecar(config = {}) {
   });
 }
 
+function matarArbol(pid) {
+  // taskkill /T /F mata el proceso y sus hijos aunque esté colgado en COM
+  // (un kill normal no puede con un proceso "Not Responding").
+  execFile("taskkill", ["/PID", String(pid), "/T", "/F"], () => {});
+}
+
 function pararSidecar() {
   if (!sidecar) return;
+  const proc = sidecar;
+  const pid = proc.pid;
   try {
-    sidecar.stdin.write("stop\n");
+    proc.stdin.write("stop\n");
   } catch {
-    sidecar.kill();
+    matarArbol(pid);
+    return;
   }
+  // Si está bloqueado y no sale en 2s, forzar cierre del árbol de procesos.
+  setTimeout(() => {
+    if (proc && !proc.killed) matarArbol(pid);
+  }, 2000);
 }
 
 ipcMain.handle("cameras:list", () => {

@@ -15,7 +15,10 @@ function cargarConfig() {
 const ESTADOS = {
   idle: "Detenido",
   loading_models: "Cargando modelos…",
+  opening_camera: "Abriendo cámara…",
   camera_opened: "Cámara abierta…",
+  loading_landmarker: "Cargando detector de manos…",
+  opening_virtualcam: "Abriendo cámara virtual…",
   ready: "En marcha",
 };
 

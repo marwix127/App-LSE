@@ -14,6 +14,8 @@ export default function Settings({ config, setConfig, bloqueado }) {
   const [camaras, setCamaras] = useState([]);
 
   async function refrescarCamaras() {
+    // pygrabber (listCameras) da los nombres en el mismo orden que el índice
+    // de captura MSMF (verificado con probe_camaras.py). Excluye la cámara virtual.
     const lista = await window.signcam.listCameras();
     setCamaras(lista);
   }

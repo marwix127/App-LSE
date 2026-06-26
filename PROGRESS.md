@@ -186,7 +186,47 @@ persistente. El subtítulo real se compone en Python y se expone a Teams/Zoom/Me
 
 ---
 
-## Fase 4: Empaquetado (pendiente)
+## Fase 4a: Migración de LSTM a ONNX (quitar TensorFlow del runtime) ✅
+**Completado: 2026-06-22**
+
+### Objetivo
+TensorFlow pesa ~1 GB (incluido un .dll que rompía el push a GitHub) y solo se usaba
+para inferir el LSTM. Migrarlo a ONNX quita TensorFlow del runtime y prepara el
+empaquetado.
+
+### Proceso
+- `convertir_lstm_onnx.py`: convierte `lstm_signos.h5` → `lstm_signos.onnx` vía
+  SavedModel + tf2onnx. Verifica equivalencia Keras vs ONNX (diferencia 0.00e+00).
+- Sidecar: `import onnxruntime` en vez de TensorFlow. Carga con `ort.InferenceSession`,
+  inferencia con `sesion.run()`. Input `input_layer`, output `output_0`.
+- Desinstalado `tensorflow` del venv. (Reinstalar solo si se reentrena el LSTM.)
+
+### Nota
+`entrenar_lstm.py` y `convertir_lstm_onnx.py` siguen necesitando TensorFlow; el runtime
+(sidecar) ya no.
+
+## Fase 4b: Saga de la cámara en Electron (resuelto) ✅
+**Completado: 2026-06-25**
+
+Tras migrar a ONNX, la app se quedaba colgada en "Cargando modelos…". Cadena de causas
+y soluciones (todas en `signcam_sidecar.py` salvo donde se indique):
+
+| Problema | Causa | Solución |
+|---|---|---|
+| Cuelgue al abrir cámara con `CAP_DSHOW` | DirectShow se bloquea en el proceso hijo de Electron | Volver al backend por defecto (MSMF) |
+| Selector de cámara abría otra distinta | El orden de pygrabber (DShow) no coincidía con el índice de captura | Verificado con `probe_camaras.py` que MSHOW/MSMF coinciden para este equipo; se mantiene pygrabber para nombres |
+| Eventos no llegaban en vivo a la UI | stdout de Python con buffering al ser proceso hijo | Lanzar Python con `-u` (sin buffer) desde Electron |
+| Apertura de cámara MSMF lentísima (~30s) | Negociación de "hardware transforms" | `OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS=0` antes de importar cv2 |
+| Deadlock de COM ("OleMainThreadWndName Not Responding") | El hilo entra en STA (necesita bucle de mensajes que no hay) | `CoInitializeEx` en modo MTA antes de tocar la cámara |
+| Deadlock permanente al "cargar modelos" | sklearn importa su backend de hilos (OpenMP/joblib) de forma diferida y choca con la init MTA de COM | Forzar `import sklearn` ANTES de inicializar COM. **No quitar ese import** |
+| Sidecars zombis acumulados reteniendo la cámara | Un proceso colgado en COM no muere con kill normal | `taskkill /T /F` al detener; matar zombis con `taskkill /F /IM python.exe` |
+
+Lección: lanzar procesos que usan cámara/COM desde Electron es delicado; el orden de
+imports y la inicialización de COM importan mucho.
+
+---
+
+## Fase 4c: Empaquetado (pendiente)
 Instalador que incluye el driver de cámara virtual sin necesidad de instalar OBS.
 Pendiente también: empaquetar el venv de Python / convertir el sidecar a ejecutable
 (PyInstaller) para que el usuario final no necesite Python instalado.
