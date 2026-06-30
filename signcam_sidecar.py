@@ -15,8 +15,28 @@ Eventos emitidos por stdout:
   {"type": "stopped"}
 """
 
+import os
 import sys
 import json
+
+# Modo rápido "--list-cameras": lista las cámaras y sale ANTES de importar cv2,
+# mediapipe, etc. (que tardan segundos). Solo usa pygrabber (ligero). Así Electron
+# puebla el desplegable al instante, tanto con Python como con el .exe empaquetado.
+if "--list-cameras" in sys.argv:
+    EXCLUIR = ("OBS Virtual Camera", "SignCam")
+    try:
+        from pygrabber.dshow_graph import FilterGraph
+        nombres = FilterGraph().get_input_devices()
+        devices = [
+            {"index": i, "name": n}
+            for i, n in enumerate(nombres)
+            if not any(x in n for x in EXCLUIR)
+        ]
+        sys.stdout.write(json.dumps({"devices": devices}))
+    except Exception as e:  # noqa: BLE001
+        sys.stdout.write(json.dumps({"devices": [], "error": str(e)}))
+    sys.exit(0)
+
 import time
 import pickle
 import argparse
@@ -49,10 +69,22 @@ from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions,
 import onnxruntime as ort
 from landmarks_utils import normalizar
 
-MODEL_PATH = r"F:\App LSE\hand_landmarker.task"
-MLP_PATH = r"F:\App LSE\mlp_signos.pkl"
-LSTM_PATH = r"F:\App LSE\lstm_signos.onnx"
-LSTM_ENCODER_PATH = r"F:\App LSE\lstm_encoder.pkl"
+
+def recurso(nombre):
+    """Resuelve la ruta de un archivo de datos (modelos).
+
+    - Empaquetado con PyInstaller: los datos van a la carpeta temporal sys._MEIPASS.
+    - En desarrollo: junto a este script.
+    Así funciona igual ejecutado con Python o como .exe, sin rutas absolutas.
+    """
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, nombre)
+
+
+MODEL_PATH = recurso("hand_landmarker.task")
+MLP_PATH = recurso("mlp_signos.pkl")
+LSTM_PATH = recurso("lstm_signos.onnx")
+LSTM_ENCODER_PATH = recurso("lstm_encoder.pkl")
 
 ANCHO, ALTO, FPS = 1280, 720, 30
 BUFFER_SIZE = 30

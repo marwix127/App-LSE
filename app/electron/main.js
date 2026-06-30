@@ -8,7 +8,14 @@ const DEV = process.env.SIGNCAM_DEV === "1";
 const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
 const PYTHON = path.join(PROJECT_ROOT, "venv", "Scripts", "python.exe");
 const SIDECAR = path.join(PROJECT_ROOT, "signcam_sidecar.py");
-const LISTAR_CAMARAS = path.join(PROJECT_ROOT, "listar_camaras.py");
+// Sidecar empaquetado (producción): no requiere Python instalado.
+const SIDECAR_EXE = path.join(PROJECT_ROOT, "dist", "signcam_sidecar", "signcam_sidecar.exe");
+
+// En desarrollo se lanza con el Python del venv; en producción, el .exe empaquetado.
+function comandoSidecar(args) {
+  if (DEV) return { cmd: PYTHON, args: ["-u", SIDECAR, ...args] };
+  return { cmd: SIDECAR_EXE, args };
+}
 
 let win = null;
 let sidecar = null;
@@ -44,15 +51,13 @@ function enviar(evento) {
 function arrancarSidecar(config = {}) {
   if (sidecar) return; // ya corriendo
 
-  const args = [
-    "-u", // sin buffering: los eventos JSON llegan al instante
-    SIDECAR,
+  const { cmd, args } = comandoSidecar([
     "--camera", String(config.camera ?? 0),
     "--subtitle-scale", String(config.subtitleScale ?? 1.0),
     "--subtitle-position", config.subtitlePosition ?? "bottom",
-  ];
+  ]);
 
-  sidecar = spawn(PYTHON, args, { cwd: PROJECT_ROOT });
+  sidecar = spawn(cmd, args, { cwd: PROJECT_ROOT, windowsHide: true });
 
   // stdout = eventos JSON, una línea por evento.
   readline.createInterface({ input: sidecar.stdout }).on("line", (linea) => {
@@ -106,7 +111,9 @@ function pararSidecar() {
 ipcMain.handle("cameras:list", () => {
   return new Promise((resolve) => {
     let salida = "";
-    const p = spawn(PYTHON, [LISTAR_CAMARAS], { cwd: PROJECT_ROOT });
+    // Mismo sidecar (Python en dev, .exe en prod) con --list-cameras: sale rápido.
+    const { cmd, args } = comandoSidecar(["--list-cameras"]);
+    const p = spawn(cmd, args, { cwd: PROJECT_ROOT, windowsHide: true });
     p.stdout.on("data", (d) => (salida += d.toString()));
     p.on("error", () => resolve([]));
     p.on("close", () => {

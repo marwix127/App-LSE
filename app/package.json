@@ -8,7 +8,7 @@
     "dev:electron": "wait-on tcp:5173 && cross-env SIGNCAM_DEV=1 electron .",
     "dev": "concurrently -k \"npm:dev:vite\" \"npm:dev:electron\"",
     "build": "vite build",
-    "start": "cross-env SIGNCAM_DEV=1 electron ."
+    "prod": "npm run build && electron ."
   },
   "dependencies": {
     "react": "^18.3.1",

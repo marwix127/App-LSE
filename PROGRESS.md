@@ -226,7 +226,45 @@ imports y la inicialización de COM importan mucho.
 
 ---
 
-## Fase 4c: Empaquetado (pendiente)
-Instalador que incluye el driver de cámara virtual sin necesidad de instalar OBS.
-Pendiente también: empaquetar el venv de Python / convertir el sidecar a ejecutable
-(PyInstaller) para que el usuario final no necesite Python instalado.
+## Fase 4c: Sidecar empaquetado con PyInstaller ✅
+**Completado: 2026-06-25**
+
+### Objetivo
+Convertir el sidecar en un `.exe` autónomo para que el usuario final no necesite
+Python ni el venv instalados.
+
+### Cambios
+- **Rutas portables**: `signcam_sidecar.py` ya no usa rutas absolutas `F:\App LSE\...`.
+  Helper `recurso()` resuelve los modelos junto al script (dev) o en `sys._MEIPASS`
+  (empaquetado). Esto además hizo el proyecto portable.
+- **`signcam_sidecar.spec`**: receta de PyInstaller (modo carpeta, arranque rápido).
+  `collect_all` de mediapipe, onnxruntime, pyvirtualcam, matplotlib, pygrabber, comtypes.
+  Incluye los 4 modelos como datos. Excluye tensorflow/keras (no se usan en runtime).
+  Genera `dist/signcam_sidecar/signcam_sidecar.exe` (~349 MB).
+- **Modo `--list-cameras`**: atajo al inicio del sidecar (antes de importar cv2/mediapipe)
+  que lista cámaras con pygrabber y sale. Rápido tanto en Python como en el .exe.
+  Sustituye a `listar_camaras.py` (eliminado).
+- **Integración Electron**: `main.js` elige el comando según entorno — `comandoSidecar()`
+  devuelve Python+venv en desarrollo (`SIGNCAM_DEV=1`) y el `.exe` en producción.
+  Consola oculta con `windowsHide: true`.
+- **Script `npm run prod`**: compila el renderer y lanza Electron sin `SIGNCAM_DEV`
+  (carga `dist/`, usa el `.exe`). Probado: funciona sin pasar por el venv.
+
+### Problemas encontrados y soluciones
+| Problema | Causa | Solución |
+|---|---|---|
+| `.exe` petaba: `No module named 'matplotlib'` | mediapipe importa matplotlib en `drawing_utils`; lo había excluido | Quitar matplotlib de `excludes` y añadirlo a `collect_all` |
+
+### Resultado
+`signcam_sidecar.exe` funciona en ambos modos (`--list-cameras` y normal → `ready`),
+sin Python. La app en `npm run prod` lo usa correctamente. Backend de producción
+completo y autocontenido.
+
+---
+
+## Fase 4d: Instalador (pendiente)
+- Empaquetar la app Electron entera con **electron-builder** → instalador `.exe`/`.msi`
+  que incluya la UI + `dist/signcam_sidecar/` (ajustar ruta del `.exe` empaquetado dentro
+  del recurso de la app, p.ej. `process.resourcesPath`).
+- **Driver de cámara virtual sin OBS**: que el instalador registre el driver para que el
+  usuario no tenga que instalar OBS Studio.

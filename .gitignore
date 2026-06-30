@@ -10,6 +10,10 @@ __pycache__/
 app/node_modules/
 app/dist/
 
+# Salida de PyInstaller (el .spec sí se versiona)
+build/
+dist/
+
 # Dataset generado (regenerable con extraer_landmarks.py)
 landmarks_dataset.csv
 # Nota: lstm_sequences.pkl SÍ se sube — contiene grabaciones propias de J/Z no regenerables
