@@ -14,8 +14,9 @@ import numpy as np
 import tensorflow as tf
 import onnxruntime as ort
 
-H5_PATH = r"F:\App LSE\lstm_signos.h5"
-ONNX_PATH = r"F:\App LSE\lstm_signos.onnx"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta del proyecto
+H5_PATH = os.path.join(BASE_DIR, "lstm_signos.h5")
+ONNX_PATH = os.path.join(BASE_DIR, "lstm_signos.onnx")
 FRAMES, FEATURES = 30, 63
 
 

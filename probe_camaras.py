@@ -1,6 +1,11 @@
 """Sondea los indices 0-4 con el backend por defecto (MSMF) y reporta cuales
 abren y si dan imagen real (no negra). Sirve para saber que indice usar."""
 
+import os
+
+# Igual que en el sidecar: evita ~30 s por cámara negociando "hardware transforms" en MSMF
+os.environ["OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS"] = "0"
+
 import cv2
 import numpy as np
 

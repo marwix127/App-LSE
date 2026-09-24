@@ -1,0 +1,5 @@
+# Solo para entrenar el LSTM y convertirlo a ONNX (entrenar_lstm.py, convertir_lstm_onnx.py).
+# La app NO lo necesita. TensorFlow pesa ~1 GB.
+-r requirements.txt
+tensorflow
+tf2onnx

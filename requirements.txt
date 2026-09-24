@@ -1,4 +1,19 @@
-mediapipe>=0.10.0
-opencv-python>=4.8.0
-pyvirtualcam>=0.10.0
-numpy>=1.24.0
+# Python 3.12. Runtime del sidecar + scripts de datos y del MLP + empaquetado.
+# Para reentrenar el LSTM: requirements-entrenamiento.txt
+# Techo en las versiones mayores: los problemas de cámara/COM se resolvieron con
+# mediapipe 0.10.33 + OpenCV 4.13. mediapipe 1.x / OpenCV 5.x están sin probar con cámara.
+mediapipe>=0.10.30,<1
+# mediapipe ya depende de opencv-contrib-python; no añadir también opencv-python
+# (ambos instalan el mismo módulo cv2 y se pisan).
+opencv-contrib-python>=4.13,<5
+pyvirtualcam>=0.15.0
+# mlp_signos.pkl y lstm_encoder.pkl se serializaron con numpy 2.x y scikit-learn 1.8.0.
+# Otra versión de sklearn puede no cargarlos: si la cambias, reentrena el MLP.
+numpy>=2.0
+scikit-learn==1.8.0
+onnxruntime
+# Nombres de las cámaras (--list-cameras)
+pygrabber
+comtypes
+# Empaquetado del sidecar (signcam_sidecar.spec)
+pyinstaller

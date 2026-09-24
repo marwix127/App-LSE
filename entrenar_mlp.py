@@ -1,3 +1,4 @@
+import os
 import csv
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -6,11 +7,12 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import classification_report
 import pickle
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta del proyecto
 CSV_PATHS = [
-    r"F:\App LSE\landmarks_dataset.csv",
-    r"F:\App LSE\muestras_propias.csv",
+    os.path.join(BASE_DIR, "landmarks_dataset.csv"),
+    os.path.join(BASE_DIR, "muestras_propias.csv"),
 ]
-MODEL_PATH = r"F:\App LSE\mlp_signos.pkl"
+MODEL_PATH = os.path.join(BASE_DIR, "mlp_signos.pkl")
 
 def cargar_datos():
     X, y = [], []

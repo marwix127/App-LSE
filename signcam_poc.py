@@ -1,3 +1,4 @@
+import os
 import pickle
 import cv2
 import numpy as np
@@ -9,10 +10,11 @@ from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions,
 import tensorflow as tf
 from landmarks_utils import normalizar
 
-MODEL_PATH = r"F:\App LSE\hand_landmarker.task"
-MLP_PATH = r"F:\App LSE\mlp_signos.pkl"
-LSTM_PATH = r"F:\App LSE\lstm_signos.h5"
-LSTM_ENCODER_PATH = r"F:\App LSE\lstm_encoder.pkl"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta del proyecto
+MODEL_PATH = os.path.join(BASE_DIR, "hand_landmarker.task")
+MLP_PATH = os.path.join(BASE_DIR, "mlp_signos.pkl")
+LSTM_PATH = os.path.join(BASE_DIR, "lstm_signos.h5")
+LSTM_ENCODER_PATH = os.path.join(BASE_DIR, "lstm_encoder.pkl")
 ANCHO, ALTO, FPS = 1280, 720, 30
 BANDA_H = 120
 BUFFER_SIZE = 30

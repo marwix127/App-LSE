@@ -1,3 +1,4 @@
+import os
 import pickle
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
@@ -7,9 +8,10 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dropout, Dense
 from tensorflow.keras.callbacks import EarlyStopping
 
-SEQUENCES_PKL = r"F:\App LSE\lstm_sequences.pkl"
-MODEL_PATH = r"F:\App LSE\lstm_signos.h5"
-ENCODER_PATH = r"F:\App LSE\lstm_encoder.pkl"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta del proyecto
+SEQUENCES_PKL = os.path.join(BASE_DIR, "lstm_sequences.pkl")
+MODEL_PATH = os.path.join(BASE_DIR, "lstm_signos.h5")
+ENCODER_PATH = os.path.join(BASE_DIR, "lstm_encoder.pkl")
 
 
 def main():

@@ -6,10 +6,11 @@ from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
 from landmarks_utils import normalizar
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta del proyecto
 DATASET_DIR = r"F:\Downloads\asl_alphabet_train\asl_alphabet_train"
 LETRAS = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-OUTPUT_CSV = "landmarks_dataset.csv"
-MODEL_PATH = r"F:\App LSE\hand_landmarker.task"
+OUTPUT_CSV = os.path.join(BASE_DIR, "landmarks_dataset.csv")
+MODEL_PATH = os.path.join(BASE_DIR, "hand_landmarker.task")
 
 COLUMNAS = ["letra"] + [f"{eje}{i}" for i in range(21) for eje in ("x", "y", "z")]
 

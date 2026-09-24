@@ -7,8 +7,9 @@ from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
 from landmarks_utils import normalizar
 
-MODEL_PATH = r"F:\App LSE\hand_landmarker.task"
-OUTPUT_PKL = r"F:\App LSE\lstm_sequences.pkl"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta del proyecto
+MODEL_PATH = os.path.join(BASE_DIR, "hand_landmarker.task")
+OUTPUT_PKL = os.path.join(BASE_DIR, "lstm_sequences.pkl")
 FRAMES_POR_SECUENCIA = 30
 
 

@@ -59,6 +59,10 @@ if sys.platform == "win32":
     COINIT_MULTITHREADED = 0x0
     ctypes.windll.ole32.CoInitializeEx(None, COINIT_MULTITHREADED)
 
+# Sin esto, abrir la cámara con MSMF tarda ~30 s negociando "hardware transforms".
+# OpenCV lee la variable al importarse, así que tiene que ir ANTES de `import cv2`.
+os.environ["OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS"] = "0"
+
 import cv2
 import numpy as np
 import pyvirtualcam

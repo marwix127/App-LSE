@@ -6,8 +6,9 @@ from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
 from landmarks_utils import normalizar
 
-MODEL_PATH = r"F:\App LSE\hand_landmarker.task"
-OUTPUT_CSV = r"F:\App LSE\muestras_propias.csv"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta del proyecto
+MODEL_PATH = os.path.join(BASE_DIR, "hand_landmarker.task")
+OUTPUT_CSV = os.path.join(BASE_DIR, "muestras_propias.csv")
 MUESTRAS_POR_LETRA = 50
 
 COLUMNAS = ["letra"] + [f"{eje}{i}" for i in range(21) for eje in ("x", "y", "z")]

@@ -18,7 +18,9 @@ dist/
 landmarks_dataset.csv
 # Nota: lstm_sequences.pkl SÍ se sube — contiene grabaciones propias de J/Z no regenerables
 
-# Modelo de MediaPipe (se descarga de Google, ver README)
+# Modelo de MediaPipe. Recuperar el mismo que se usó para los datasets con:
+#   git restore --source=c2385bf -- hand_landmarker.task
+# o descargarlo de https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task
 hand_landmarker.task
 
 # Modelos entrenados — descomenta si NO quieres subirlos
