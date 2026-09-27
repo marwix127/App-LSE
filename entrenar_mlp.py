@@ -7,7 +7,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import classification_report
 import pickle
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta del proyecto
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_PATHS = [
     os.path.join(BASE_DIR, "landmarks_dataset.csv"),
     os.path.join(BASE_DIR, "muestras_propias.csv"),

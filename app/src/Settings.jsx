@@ -6,16 +6,12 @@ const TAMANOS = [
   { label: "Grande", value: 1.5 },
 ];
 
-/**
- * Panel de ajustes. Los valores se aplican cuando se (re)inicia la cámara,
- * porque el sidecar los lee como argumentos al arrancar.
- */
+// Los ajustes se aplican al volver a iniciar la cámara (van como argumentos al sidecar)
 export default function Settings({ config, setConfig, bloqueado }) {
   const [camaras, setCamaras] = useState([]);
 
   async function refrescarCamaras() {
-    // pygrabber (listCameras) da los nombres en el mismo orden que el índice
-    // de captura MSMF (verificado con probe_camaras.py). Excluye la cámara virtual.
+    // el orden de pygrabber coincide con el índice de OpenCV (comprobado con probe_camaras.py)
     const lista = await window.signcam.listCameras();
     setCamaras(lista);
   }

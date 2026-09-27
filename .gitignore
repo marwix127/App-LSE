@@ -1,38 +1,19 @@
-# Entorno virtual — se reconstruye con: pip install -r requirements.txt
-# (contiene el .dll de TensorFlow >100MB que rechaza GitHub)
 venv/
-
-# Caché de Python
 __pycache__/
 *.pyc
 
-# Dependencias y build de la app Electron/React
 app/node_modules/
 app/dist/
 
-# Salida de PyInstaller (el .spec sí se versiona)
+# PyInstaller
 build/
 dist/
 
-# Dataset generado (regenerable con extraer_landmarks.py)
+# se genera con extraer_landmarks.py
 landmarks_dataset.csv
-# Nota: lstm_sequences.pkl SÍ se sube — contiene grabaciones propias de J/Z no regenerables
 
-# Modelo de MediaPipe. Recuperar el mismo que se usó para los datasets con:
-#   git restore --source=c2385bf -- hand_landmarker.task
-# o descargarlo de https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task
+# modelo de MediaPipe: git restore --source=c2385bf -- hand_landmarker.task
 hand_landmarker.task
 
-# Modelos entrenados — descomenta si NO quieres subirlos
-# (son pequeños pero regenerables con entrenar_mlp.py / entrenar_lstm.py)
-# mlp_signos.pkl
-# lstm_signos.h5
-# lstm_encoder.pkl
-
-# Configuración local de Claude
-.claude/
-
-# Documento personal — no se sube a GitHub
 Notas.md
-CLAUDE.md
 PROGRESS.md

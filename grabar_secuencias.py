@@ -7,7 +7,7 @@ from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
 from landmarks_utils import normalizar
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta del proyecto
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "hand_landmarker.task")
 OUTPUT_PKL = os.path.join(BASE_DIR, "lstm_sequences.pkl")
 FRAMES_POR_SECUENCIA = 30
@@ -45,7 +45,7 @@ def main():
             grabando = False
             frames_capturados = 0
 
-            print(f"\nSecuencia {i+1}/{num_secuencias} — Pulsa ESPACIO cuando estés listo para grabar")
+            print(f"\nSecuencia {i+1}/{num_secuencias}. Pulsa ESPACIO cuando estés listo para grabar")
 
             while True:
                 ok, frame = cap.read()
@@ -81,9 +81,9 @@ def main():
 
             if len(secuencia) == FRAMES_POR_SECUENCIA:
                 secuencias[letra].append(np.array(secuencia))
-                print(f"  ✓ Secuencia {i+1} guardada ({len(secuencia)} frames)")
+                print(f"  Secuencia {i+1} guardada ({len(secuencia)} frames)")
             else:
-                print(f"  ✗ Secuencia {i+1} incompleta ({len(secuencia)} frames)")
+                print(f"  Secuencia {i+1} incompleta ({len(secuencia)} frames)")
 
     cap.release()
     cv2.destroyAllWindows()

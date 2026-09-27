@@ -1,10 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 
-/**
- * Muestra el vídeo de la cámara virtual (lo que ven en Teams/Zoom).
- * Lee el dispositivo cuyo nombre coincide con `virtualCamera` mediante getUserMedia.
- * No accede a la webcam real (de eso se encarga el sidecar de Python).
- */
+// Muestra la cámara virtual, no la webcam (esa la tiene abierta el sidecar)
 export default function Preview({ virtualCamera, activo }) {
   const videoRef = useRef(null);
   const [error, setError] = useState("");
@@ -17,8 +13,7 @@ export default function Preview({ virtualCamera, activo }) {
       setError("");
       if (!activo || !virtualCamera) return;
       try {
-        // NO abrimos la cámara por defecto (podría ser la webcam real, que está
-        // ocupada por el sidecar). Buscamos directamente la cámara virtual por nombre.
+        // se busca por nombre; la cámara por defecto podría ser la webcam real
         const dispositivos = await navigator.mediaDevices.enumerateDevices();
         const cam = dispositivos.find(
           (d) => d.kind === "videoinput" && d.label.includes(virtualCamera)
@@ -41,7 +36,7 @@ export default function Preview({ virtualCamera, activo }) {
       }
     }
 
-    // La cámara virtual tarda un instante en estar disponible tras "ready".
+    // la cámara virtual tarda un poco en aparecer después de "ready"
     const t = setTimeout(conectar, 600);
 
     return () => {

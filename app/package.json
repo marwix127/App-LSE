@@ -1,7 +1,7 @@
 {
   "name": "signcam-app",
   "version": "0.1.0",
-  "description": "SignCam — subtitulos de lengua de signos como camara virtual",
+  "description": "SignCam: subtitulos de lengua de signos como camara virtual",
   "main": "electron/main.js",
   "scripts": {
     "dev:vite": "vite",

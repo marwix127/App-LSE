@@ -6,7 +6,7 @@ from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
 from landmarks_utils import normalizar
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta del proyecto
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASET_DIR = r"F:\Downloads\asl_alphabet_train\asl_alphabet_train"
 LETRAS = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 OUTPUT_CSV = os.path.join(BASE_DIR, "landmarks_dataset.csv")
@@ -59,7 +59,7 @@ def main():
                 writer.writerow([letra] + landmarks)
                 ok += 1
 
-            print(f" → {ok} landmarks extraídos")
+            print(f": {ok} landmarks extraídos")
             total += ok
 
     print(f"\nTotal: {total} filas guardadas en {OUTPUT_CSV} ({saltadas} imágenes sin mano detectada)")

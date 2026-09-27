@@ -6,7 +6,7 @@ from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
 from landmarks_utils import normalizar
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta del proyecto
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "hand_landmarker.task")
 OUTPUT_CSV = os.path.join(BASE_DIR, "muestras_propias.csv")
 MUESTRAS_POR_LETRA = 50
@@ -43,7 +43,7 @@ def main():
             guardadas = 0
             grabando = False
 
-            print(f"\nLetra: {letra} — Pon la mano en posición y pulsa ESPACIO para grabar {MUESTRAS_POR_LETRA} muestras. Q para saltar.")
+            print(f"\nLetra: {letra}. Pon la mano en posición y pulsa ESPACIO para grabar {MUESTRAS_POR_LETRA} muestras. Q para saltar.")
 
             while guardadas < MUESTRAS_POR_LETRA:
                 ok, frame = cap.read()
@@ -78,9 +78,9 @@ def main():
                     writer.writerow([letra] + landmarks)
                     guardadas += 1
                     grabando = False
-                    print(f"  Muestra {guardadas}/{MUESTRAS_POR_LETRA} — suelta y vuelve a hacer el signo, luego ESPACIO")
+                    print(f"  Muestra {guardadas}/{MUESTRAS_POR_LETRA}, suelta y vuelve a hacer el signo, luego ESPACIO")
 
-            print(f"  → {guardadas} muestras guardadas para {letra}")
+            print(f"  {guardadas} muestras guardadas para {letra}")
 
     cap.release()
     cv2.destroyAllWindows()

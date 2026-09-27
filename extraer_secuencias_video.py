@@ -7,7 +7,7 @@ from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
 from landmarks_utils import normalizar
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta del proyecto
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "hand_landmarker.task")
 DATASET_DIR = r"F:\Downloads\SigNN Video Data"
 OUTPUT_PKL = os.path.join(BASE_DIR, "lstm_sequences.pkl")
@@ -47,7 +47,7 @@ def main():
     if os.path.exists(OUTPUT_PKL):
         with open(OUTPUT_PKL, "rb") as f:
             secuencias = pickle.load(f)
-        print(f"Cargado existente — J: {len(secuencias['J'])}, Z: {len(secuencias['Z'])}")
+        print(f"Cargado existente. J: {len(secuencias['J'])}, Z: {len(secuencias['Z'])}")
     else:
         secuencias = {"J": [], "Z": []}
 
@@ -87,7 +87,7 @@ def main():
         pickle.dump(secuencias, f)
 
     print(f"\nGuardado en {OUTPUT_PKL}")
-    print(f"Total — J: {len(secuencias['J'])}, Z: {len(secuencias['Z'])}")
+    print(f"Total J: {len(secuencias['J'])}, Z: {len(secuencias['Z'])}")
 
 
 if __name__ == "__main__":

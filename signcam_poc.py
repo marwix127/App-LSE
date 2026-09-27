@@ -10,7 +10,7 @@ from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions,
 import tensorflow as tf
 from landmarks_utils import normalizar
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta del proyecto
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "hand_landmarker.task")
 MLP_PATH = os.path.join(BASE_DIR, "mlp_signos.pkl")
 LSTM_PATH = os.path.join(BASE_DIR, "lstm_signos.h5")
@@ -74,8 +74,7 @@ def hay_movimiento(buffer):
     if len(buffer) < BUFFER_SIZE:
         return False
     seq = np.array(buffer[-BUFFER_SIZE:])
-    # std a lo largo del tiempo (eje 0) por cada coordenada, promediado.
-    # Mano quieta -> cercano a 0; movimiento (J/Z) -> alto.
+    # variacion en el tiempo (eje 0), cerca de 0 si la mano esta quieta
     movimiento = np.mean(np.std(seq, axis=0))
     return movimiento > 0.03
 

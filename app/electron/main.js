@@ -4,14 +4,13 @@ const readline = require("readline");
 const path = require("path");
 
 const DEV = process.env.SIGNCAM_DEV === "1";
-// Raíz del proyecto Python (un nivel por encima de app/).
+// raíz del proyecto (encima de app/)
 const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
 const PYTHON = path.join(PROJECT_ROOT, "venv", "Scripts", "python.exe");
 const SIDECAR = path.join(PROJECT_ROOT, "signcam_sidecar.py");
-// Sidecar empaquetado (producción): no requiere Python instalado.
 const SIDECAR_EXE = path.join(PROJECT_ROOT, "dist", "signcam_sidecar", "signcam_sidecar.exe");
 
-// En desarrollo se lanza con el Python del venv; en producción, el .exe empaquetado.
+// dev: python del venv, prod: el .exe de PyInstaller
 function comandoSidecar(args) {
   if (DEV) return { cmd: PYTHON, args: ["-u", SIDECAR, ...args] };
   return { cmd: SIDECAR_EXE, args };
@@ -59,7 +58,7 @@ function arrancarSidecar(config = {}) {
 
   sidecar = spawn(cmd, args, { cwd: PROJECT_ROOT, windowsHide: true });
 
-  // stdout = eventos JSON, una línea por evento.
+  // stdout: un evento JSON por línea
   readline.createInterface({ input: sidecar.stdout }).on("line", (linea) => {
     const txt = linea.trim();
     if (!txt) return;
@@ -70,7 +69,7 @@ function arrancarSidecar(config = {}) {
     }
   });
 
-  // stderr = warnings de TF/MediaPipe; los mandamos como log para depurar.
+  // stderr se manda como log
   readline.createInterface({ input: sidecar.stderr }).on("line", (linea) => {
     if (linea.trim()) enviar({ type: "log", message: linea.trim() });
   });
@@ -87,8 +86,7 @@ function arrancarSidecar(config = {}) {
 }
 
 function matarArbol(pid) {
-  // taskkill /T /F mata el proceso y sus hijos aunque esté colgado en COM
-  // (un kill normal no puede con un proceso "Not Responding").
+  // si se queda colgado en COM un kill normal no lo cierra
   execFile("taskkill", ["/PID", String(pid), "/T", "/F"], () => {});
 }
 
@@ -102,7 +100,7 @@ function pararSidecar() {
     matarArbol(pid);
     return;
   }
-  // Si está bloqueado y no sale en 2s, forzar cierre del árbol de procesos.
+  // si en 2 s no ha salido, se mata
   setTimeout(() => {
     if (proc && !proc.killed) matarArbol(pid);
   }, 2000);
@@ -111,7 +109,6 @@ function pararSidecar() {
 ipcMain.handle("cameras:list", () => {
   return new Promise((resolve) => {
     let salida = "";
-    // Mismo sidecar (Python en dev, .exe en prod) con --list-cameras: sale rápido.
     const { cmd, args } = comandoSidecar(["--list-cameras"]);
     const p = spawn(cmd, args, { cwd: PROJECT_ROOT, windowsHide: true });
     p.stdout.on("data", (d) => (salida += d.toString()));
@@ -137,10 +134,9 @@ ipcMain.handle("sidecar:stop", () => {
 });
 
 app.whenReady().then(() => {
-  // Permitir acceso a la cámara (necesario para getUserMedia y enumerar dispositivos).
+  // permisos de cámara para el preview
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(true));
-  // setPermissionCheckHandler concede el permiso de forma síncrona, así
-  // enumerateDevices() devuelve las ETIQUETAS sin tener que abrir antes una cámara.
+  // sin esto enumerateDevices() devuelve las cámaras sin nombre
   session.defaultSession.setPermissionCheckHandler(() => true);
   createWindow();
 });

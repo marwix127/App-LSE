@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// base "./" para que las rutas funcionen al cargar desde file:// en producción.
+// base "./" para cargar desde file:// en producción
 export default defineConfig({
   base: "./",
   plugins: [react()],

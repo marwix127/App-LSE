@@ -8,7 +8,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dropout, Dense
 from tensorflow.keras.callbacks import EarlyStopping
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta del proyecto
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SEQUENCES_PKL = os.path.join(BASE_DIR, "lstm_sequences.pkl")
 MODEL_PATH = os.path.join(BASE_DIR, "lstm_signos.h5")
 ENCODER_PATH = os.path.join(BASE_DIR, "lstm_encoder.pkl")

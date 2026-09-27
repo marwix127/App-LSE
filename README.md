@@ -1,38 +1,28 @@
 # SignCam
 
-SignCam es una cámara virtual que subtitula en tiempo real el alfabeto dactilológico. Captura la webcam, detecta las manos con MediaPipe, reconoce la letra que se está signando y la escribe como subtítulo sobre el vídeo. El resultado se publica como una cámara virtual, de modo que se puede elegir en Teams, Google Meet, Zoom o cualquier otra aplicación de videollamada.
+Cámara virtual que reconoce el alfabeto dactilológico con la webcam y lo muestra como subtítulo en el vídeo. La cámara virtual se puede usar en Teams, Meet, Zoom, etc.
 
-Reconoce las 26 letras del alfabeto: las estáticas frame a frame y las dos que llevan movimiento, J y Z, a partir de una secuencia de frames.
+Reconoce las 26 letras. J y Z, que llevan movimiento, se reconocen con un LSTM a partir de los últimos 30 frames; el resto con un MLP frame a frame. Los modelos están entrenados con el alfabeto ASL y grabaciones propias, todavía no con LSE.
 
-> Los modelos actuales se han entrenado con el alfabeto **ASL** (lengua de signos americana) y con grabaciones propias. El objetivo del proyecto es llegar a LSE/LSC, pero de momento no están entrenados con ellas.
-
-## Cómo funciona
+## Funcionamiento
 
 ```
-Webcam real --> Sidecar Python --------------> Cámara virtual --> Teams / Meet / Zoom
-                (MediaPipe + MLP/LSTM)              |
-                      |                             +--> Preview en la app
-                      | eventos JSON (letra, fps)
-                      v
-                Electron (main) --IPC--> Interfaz React
+Webcam -> signcam_sidecar.py -> cámara virtual -> Teams / Meet / Zoom
+               |                      |
+               | JSON por stdout      +-> preview en la app
+               v
+          Electron -> React
 ```
 
-- **Sidecar Python** (`signcam_sidecar.py`). Es el pipeline de reconocimiento y el único proceso que abre la webcam física. Por cada frame hace lo siguiente:
-  1. Extrae 21 landmarks de la mano.
-  2. Los normaliza: quita la posición y la escala y espeja la mano izquierda.
-  3. Clasifica la letra.
-  4. Dibuja el subtítulo y envía el frame a la cámara virtual.
-
-  Se comunica con Electron por stdin/stdout: los ajustes llegan como argumentos y los eventos salen en JSON, uno por línea.
-- **Clasificación híbrida.** Un MLP (scikit-learn) clasifica las letras estáticas a partir de un solo frame. Un LSTM (exportado a ONNX) clasifica J y Z a partir de los últimos 30 frames, pero solo cuando detecta que la mano se está moviendo.
-- **App de escritorio** (`app/`, Electron + React). Arranca y detiene el sidecar y muestra la letra detectada y los fps. Tiene un panel de ajustes para elegir la cámara de entrada y el tamaño y la posición del subtítulo. El preview lee la cámara *virtual*, así que muestra exactamente lo que verán los demás en la videollamada.
+- `signcam_sidecar.py` abre la webcam, detecta la mano con MediaPipe, clasifica la letra, pinta el subtítulo y manda el frame a la cámara virtual.
+- `app/` es la interfaz (Electron + React). Arranca y para el sidecar, muestra la letra y los fps y permite elegir cámara, tamaño y posición del subtítulo.
 
 ## Requisitos
 
-- Windows 10 u 11.
-- **Python 3.12.** No sirven versiones más nuevas, porque mediapipe no tiene paquetes para 3.14.
-- **Node.js 18 o superior** (para la app de escritorio).
-- **OBS Studio**, que proporciona el driver de cámara virtual. Basta con instalarlo una vez; no hace falta tenerlo abierto mientras se usa SignCam.
+- Windows 10/11
+- Python 3.12 (mediapipe no funciona en 3.14)
+- Node.js 18 o superior
+- OBS Studio instalado, para el driver de cámara virtual. No hace falta tenerlo abierto.
 
 ## Instalación
 
@@ -40,125 +30,81 @@ Webcam real --> Sidecar Python --------------> Cámara virtual --> Teams / Meet 
 git clone https://github.com/marwix127/App-LSE.git
 cd App-LSE
 
-# Entorno de Python
 py -3.12 -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
 
-# Modelo de detección de manos de MediaPipe (no se versiona)
+# modelo de manos de MediaPipe
 git restore --source=c2385bf -- hand_landmarker.task
 
-# App de escritorio
 cd app
 npm install
 ```
 
-El comando `git restore` recupera del historial exactamente el mismo modelo con el que se generaron los datos de entrenamiento. Si prefieres descargarlo, está en https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task y hay que guardarlo en la raíz del proyecto.
+El modelo de MediaPipe también se puede descargar de https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task y dejarlo en la raíz.
 
 ## Uso
 
-### Arrancar la app (desarrollo)
-
-Desde la carpeta `app/`:
+Desde `app/`:
 
 ```powershell
 npm run dev
 ```
 
-Se abren Vite y Electron. La app lanza el sidecar con el Python de `venv/`. Pulsa **Iniciar cámara**, espera a que el estado pase a "En marcha" y elige la cámara virtual (aparece como "OBS Virtual Camera") en tu aplicación de videollamada.
+Pulsar "Iniciar cámara" y, cuando ponga "En marcha", elegir "OBS Virtual Camera" en la aplicación de videollamada. Los ajustes se aplican al volver a iniciar la cámara.
 
-Los ajustes se guardan entre sesiones. Solo se aplican al iniciar la cámara, así que para cambiarlos hay que detenerla antes.
-
-### Modo producción (sin Python instalado)
-
-Primero hay que empaquetar el sidecar como ejecutable, desde la raíz del proyecto:
+### Versión empaquetada
 
 ```powershell
+# desde la raíz
 venv\Scripts\pyinstaller signcam_sidecar.spec
-```
 
-Esto genera `dist\signcam_sidecar\signcam_sidecar.exe`. Después, desde `app/`:
-
-```powershell
+# desde app/
 npm run prod
 ```
 
-Este comando compila la interfaz y abre Electron usando el `.exe` en lugar del venv.
+`npm run prod` usa `dist\signcam_sidecar\signcam_sidecar.exe` en vez de Python.
 
-### Ejecutar el sidecar sin la app
-
-Es útil para depurar el pipeline. Desde la raíz, con el venv activado:
+### Sidecar sin la app
 
 ```powershell
 python signcam_sidecar.py --list-cameras
 python -u signcam_sidecar.py --camera 0 --subtitle-scale 1.0 --subtitle-position bottom
 ```
 
-El segundo comando se detiene escribiendo `stop` y pulsando Enter.
+Se para escribiendo `stop`. `--subtitle-position` puede ser `top` o `bottom`. Para saber qué índice es cada cámara: `python probe_camaras.py`.
 
-| Argumento | Valores | Por defecto |
-|---|---|---|
-| `--camera` | índice de la cámara en OpenCV | `0` |
-| `--subtitle-scale` | `0.5`, `1.0`, `1.5`... | `1.0` |
-| `--subtitle-position` | `top`, `bottom` | `bottom` |
+## Entrenamiento
 
-Si no sabes qué índice corresponde a cada cámara, `python probe_camaras.py` prueba los índices 0 a 4. Para cada uno indica si abre y si da imagen o un frame negro.
+Los modelos entrenados ya están en el repositorio. Para volver a entrenarlos:
 
-## Entrenar los modelos
+| Script | Qué hace |
+|---|---|
+| `extraer_landmarks.py` | landmarks del dataset ASL Alphabet -> `landmarks_dataset.csv` |
+| `grabar_muestras.py` | graba muestras propias con la webcam -> `muestras_propias.csv` |
+| `entrenar_mlp.py` | entrena el MLP -> `mlp_signos.pkl` |
+| `extraer_secuencias_video.py` | secuencias de J y Z del dataset SigNN -> `lstm_sequences.pkl` |
+| `grabar_secuencias.py` | graba secuencias propias de J y Z -> `lstm_sequences.pkl` |
+| `entrenar_lstm.py` | entrena el LSTM -> `lstm_signos.h5`, `lstm_encoder.pkl` |
+| `convertir_lstm_onnx.py` | convierte el LSTM a ONNX -> `lstm_signos.onnx` |
 
-Los modelos entrenados ya vienen en el repositorio (`mlp_signos.pkl`, `lstm_signos.onnx` y `lstm_encoder.pkl`). Solo hace falta reentrenarlos si quieres añadir datos o cambiar el modelo.
+- Los datasets (ASL Alphabet y SigNN Video Data) son de Kaggle. La ruta se cambia en `DATASET_DIR` en cada script.
+- El LSTM necesita TensorFlow: `pip install -r requirements-entrenamiento.txt`.
+- Los scripts de grabación usan la cámara 0. ESPACIO graba, Q salta.
+- Los scripts de grabación y `extraer_secuencias_video.py` añaden a los datos existentes, no los sustituyen. Ejecutar dos veces la extracción duplica las secuencias.
+- `muestras_propias.csv` y `lstm_sequences.pkl` tienen grabaciones propias que no se pueden regenerar.
+- Si se cambia `landmarks_utils.normalizar` hay que volver a extraer los datos y reentrenar los dos modelos.
+- scikit-learn está fijado a 1.8.0 porque los modelos se guardan con pickle.
 
-| Paso | Script | Genera |
-|---|---|---|
-| Extraer landmarks del dataset ASL Alphabet | `extraer_landmarks.py` | `landmarks_dataset.csv` |
-| Grabar muestras propias de letras estáticas | `grabar_muestras.py` | `muestras_propias.csv` |
-| Entrenar el MLP | `entrenar_mlp.py` | `mlp_signos.pkl` |
-| Extraer secuencias de J y Z del dataset SigNN | `extraer_secuencias_video.py` | `lstm_sequences.pkl` |
-| Grabar secuencias propias de J y Z | `grabar_secuencias.py` | `lstm_sequences.pkl` |
-| Entrenar el LSTM | `entrenar_lstm.py` | `lstm_signos.h5`, `lstm_encoder.pkl` |
-| Convertir el LSTM a ONNX | `convertir_lstm_onnx.py` | `lstm_signos.onnx` |
+## Problemas conocidos
 
-Notas:
+- Si la cámara se queda ocupada después de cerrar la app, puede haber un sidecar colgado: `taskkill /F /IM python.exe` (o `signcam_sidecar.exe` en la versión empaquetada).
+- La webcam solo la puede usar una aplicación a la vez; si otra la tiene abierta, el sidecar no arranca.
+- `UnicodeEncodeError` en consola: `$env:PYTHONUTF8 = "1"`.
+- Los comandos de npm se ejecutan desde `app/`.
 
-- **Datasets externos** (Kaggle):
-  - *ASL Alphabet*: fotos de cada letra, organizadas en carpetas `A` a `Z`.
-  - *SigNN Video Data*: vídeos `.avi` organizados en carpetas `J` y `Z`.
+## Pendiente
 
-  Su ubicación está en la constante `DATASET_DIR` de cada script de extracción; ajústala a donde los hayas descargado.
-- **El LSTM necesita TensorFlow.** Solo se usa para entrenar y convertir; la app no lo necesita en ejecución. Para instalarlo: `pip install -r requirements-entrenamiento.txt`.
-- **Scripts de grabación.** Usan la cámara 0. Colocas la mano y pulsas `ESPACIO` para grabar; `Q` salta la letra o la secuencia actual. Los datos nuevos se añaden a los que ya existen.
-- **`extraer_secuencias_video.py` también añade** a `lstm_sequences.pkl`, no lo sobrescribe. Si lo ejecutas dos veces sobre el mismo dataset, las secuencias quedan duplicadas.
-- **Datos no regenerables.** `muestras_propias.csv` y `lstm_sequences.pkl` contienen grabaciones propias que no se pueden regenerar. Conviene hacer una copia antes de experimentar con ellos.
-- **La normalización es común a todo.** Entrenamiento e inferencia comparten la misma función (`landmarks_utils.normalizar`). Si la cambias, hay que volver a extraer todos los datos y reentrenar los dos modelos.
-- **La versión de scikit-learn está fijada** (`1.8.0`), porque los modelos se guardan con pickle. Si la cambias, reentrena el MLP.
-
-## Estructura del proyecto
-
-```
-signcam_sidecar.py        Pipeline de reconocimiento usado por la app
-signcam_sidecar.spec      Receta de PyInstaller para empaquetar el sidecar
-landmarks_utils.py        Normalización de landmarks (compartida por todos los scripts)
-probe_camaras.py          Diagnóstico de índices de cámara
-signcam_poc.py            Prueba de concepto original (ventana OpenCV, usa TensorFlow)
-extraer_*.py, grabar_*.py, entrenar_*.py, convertir_lstm_onnx.py
-                          Pipeline de datos y entrenamiento
-app/electron/             Proceso principal de Electron y preload
-app/src/                  Interfaz React
-```
-
-## Solución de problemas
-
-- **La cámara no se libera, o la app no vuelve a arrancar.** Puede haberse quedado colgado un sidecar anterior. Ciérralo con `taskkill /F /IM python.exe` (en desarrollo) o `taskkill /F /IM signcam_sidecar.exe` (en producción).
-- **El preview sale en negro o la cámara aparece como "en uso".** En Windows, la webcam física solo puede usarla un proceso a la vez. Cierra cualquier otra aplicación que la esté usando.
-- **La cámara elegida no es la que se abre.** Comprueba los índices con `python probe_camaras.py`.
-- **`UnicodeEncodeError` al ejecutar scripts en la consola.** Activa UTF-8 con `$env:PYTHONUTF8 = "1"` (PowerShell).
-- **`npm` no encuentra `package.json`.** Los comandos de npm se ejecutan desde la carpeta `app/`, no desde la raíz.
-
-## Estado y limitaciones
-
-- Reconoce letras sueltas del alfabeto, no palabras ni frases.
-- Solo clasifica la primera mano que detecta.
-- La cámara de entrada se elige por índice de OpenCV.
-- Pendiente:
-  - un instalador (electron-builder) que incluya el sidecar empaquetado;
-  - registrar el driver de cámara virtual sin necesidad de instalar OBS Studio.
+- Solo reconoce letras sueltas y la primera mano detectada.
+- La cámara se elige por índice de OpenCV.
+- Falta un instalador (electron-builder) y que el driver de cámara virtual no dependa de OBS.

@@ -1,14 +1,7 @@
-"""SignCam sidecar — pipeline de reconocimiento pensado para ser lanzado por Electron.
+"""Sidecar de SignCam, lo lanza Electron.
 
-Protocolo de comunicacion:
-- ENTRADA: argumentos de linea de comandos (config) + comandos por stdin (una palabra
-  por linea, p.ej. "stop").
-- SALIDA: eventos JSON por stdout, uno por linea (NDJSON). Los logs/warnings de
-  TensorFlow y MediaPipe van a stderr, asi stdout queda limpio para que Electron parsee.
-
-Eventos emitidos por stdout:
+Config por argumentos, "stop" por stdin. Por stdout solo salen eventos JSON (uno por linea):
   {"type": "init", "stage": "loading_models"}
-  {"type": "init", "stage": "camera_opened"}
   {"type": "ready", "virtual_camera": "...", "width": W, "height": H}
   {"type": "status", "letter": "A", "is_movement": false, "fps": 28.3}
   {"type": "error", "message": "..."}
@@ -19,9 +12,7 @@ import os
 import sys
 import json
 
-# Modo rápido "--list-cameras": lista las cámaras y sale ANTES de importar cv2,
-# mediapipe, etc. (que tardan segundos). Solo usa pygrabber (ligero). Así Electron
-# puebla el desplegable al instante, tanto con Python como con el .exe empaquetado.
+# --list-cameras va antes de importar cv2/mediapipe para que responda rapido
 if "--list-cameras" in sys.argv:
     EXCLUIR = ("OBS Virtual Camera", "SignCam")
     try:
@@ -33,7 +24,7 @@ if "--list-cameras" in sys.argv:
             if not any(x in n for x in EXCLUIR)
         ]
         sys.stdout.write(json.dumps({"devices": devices}))
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         sys.stdout.write(json.dumps({"devices": [], "error": str(e)}))
     sys.exit(0)
 
@@ -42,25 +33,17 @@ import pickle
 import argparse
 import threading
 
-# IMPORTANTE: importar sklearn ANTES de inicializar COM (MTA). Al cargar el MLP con
-# pickle, sklearn importa de forma diferida su backend de hilos (OpenMP/joblib), que
-# choca con la inicialización MTA de COM y produce un deadlock permanente al "cargar
-# modelos". Forzando el import aquí, ese backend se inicializa antes que COM. No quitar.
-import sklearn  # noqa: F401
-import sklearn.neural_network  # noqa: F401
+# sklearn tiene que importarse antes de CoInitializeEx, si no se queda colgado al cargar el MLP
+import sklearn
+import sklearn.neural_network
 
-
-# Inicializa COM en modo MULTITHREADED (MTA) antes de tocar la cámara. Lanzado como
-# proceso hijo de Electron, el hilo entra por defecto en STA, que necesita un bucle de
-# mensajes que el sidecar no tiene (está en el bucle de captura) -> deadlock de COM
-# (ventana "OleMainThreadWndName Not Responding"). En MTA no hace falta ese bucle.
+# COM en modo MTA: en STA (por defecto como hijo de Electron) la camara se bloquea
 if sys.platform == "win32":
     import ctypes
     COINIT_MULTITHREADED = 0x0
     ctypes.windll.ole32.CoInitializeEx(None, COINIT_MULTITHREADED)
 
-# Sin esto, abrir la cámara con MSMF tarda ~30 s negociando "hardware transforms".
-# OpenCV lee la variable al importarse, así que tiene que ir ANTES de `import cv2`.
+# antes de importar cv2, si no MSMF tarda ~30 s en abrir la camara
 os.environ["OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS"] = "0"
 
 import cv2
@@ -75,12 +58,7 @@ from landmarks_utils import normalizar
 
 
 def recurso(nombre):
-    """Resuelve la ruta de un archivo de datos (modelos).
-
-    - Empaquetado con PyInstaller: los datos van a la carpeta temporal sys._MEIPASS.
-    - En desarrollo: junto a este script.
-    Así funciona igual ejecutado con Python o como .exe, sin rutas absolutas.
-    """
+    # en el .exe de PyInstaller los datos estan en sys._MEIPASS
     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base, nombre)
 
@@ -99,13 +77,11 @@ _stop = threading.Event()
 
 
 def emit(obj):
-    """Emite un evento JSON por stdout (una linea) y hace flush para tiempo real."""
     sys.stdout.write(json.dumps(obj) + "\n")
     sys.stdout.flush()
 
 
 def escuchar_stdin():
-    """Hilo que lee comandos de Electron por stdin. 'stop' detiene el bucle."""
     for linea in sys.stdin:
         if linea.strip().lower() == "stop":
             _stop.set()
@@ -205,8 +181,7 @@ def main():
 
     try:
         emit({"type": "init", "stage": "opening_camera"})
-        # Backend por defecto (MSMF en Windows): estable dentro de Electron.
-        # DirectShow (CAP_DSHOW) se colgaba al abrir DroidCam desde el proceso hijo.
+        # backend por defecto (MSMF), con CAP_DSHOW se colgaba dentro de Electron
         cap = cv2.VideoCapture(args.camera)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, ANCHO)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, ALTO)
@@ -252,7 +227,7 @@ def main():
                 dibujar_landmarks(frame, resultado)
 
                 tiempo_actual = time.time()
-                texto = texto_anterior  # solo la letra limpia, sin prefijos
+                texto = texto_anterior
 
                 if resultado.hand_landmarks:
                     es_izquierda = resultado.handedness[0][0].category_name == "Left"
@@ -273,7 +248,7 @@ def main():
                             texto = letra_nueva
                             texto_anterior = letra_nueva
                             tiempo_ultimo_cambio = tiempo_actual
-                            # is_movement va a la app por JSON, pero NO se quema en el vídeo
+                            # is_movement solo va a la app, no se pinta en el video
                             emit({"type": "status", "letter": letra_nueva,
                                   "is_movement": es_movimiento, "fps": round(fps_real, 1)})
                 else:
@@ -289,7 +264,7 @@ def main():
                 cam.send(frame_out)
                 cam.sleep_until_next_frame()
 
-                # FPS real suavizado
+                # fps suavizado
                 ahora = time.time()
                 dt = ahora - t_fps
                 t_fps = ahora
@@ -299,7 +274,7 @@ def main():
         cap.release()
         emit({"type": "stopped"})
 
-    except Exception as e:  # noqa: BLE001 - reportamos cualquier fallo a Electron
+    except Exception as e:
         emit({"type": "error", "message": str(e)})
         raise
 
